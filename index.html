@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vivistar Day Bill Voucher - A4 Split</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* --- Configuration --- */
+:root{
+  --main-blue:#1a237e; /* Dark Blue */
+  --light-blue:#9fa8da; /* Light Blue */
+  --text:#0d113f;
+  --input-height: 38px;
+  --blue-pen: #003366; /* UPDATED: More Dark Blue Ink */
+  --green-pen: #006400; /* Dark Green Ink */
+  --red-voucher-no: #D32F2F; /* Red for Voucher No */
+  --header-bg: #e0e7ff; /* Lightest Blue for headers */
+  --table-border-color: #4a548e; /* Deeper border color for print tables */
+  --amount-words-color: #5D4037; /* Dark Brown for Amount in Words (Requested Color) */
+}
+
+/* --- App Styling (Input Form) --- */
+*{box-sizing:border-box;font-family:Inter,Arial,Helvetica,sans-serif;}
+body{background:linear-gradient(180deg,#e0e7ff,#d0d9ff);color:var(--text);padding:18px;margin:0;}
+.container{max-width:980px;margin:auto;}
+.card{background:#fff;padding:14px;border-radius:10px;box-shadow:0 4px 18px rgba(26,35,126,0.06);border:1px solid rgba(26,35,126,0.08);}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+    width: 100%;
+    padding: 6px 8px;
+    height: var(--input-height);
+    border: 1px solid var(--light-blue);
+    border-radius: 5px;
+    background: #fff;
+    font-weight: bold;
+}
+/* NEW: Ensure Description input aligns left (Input is already bold from above) */
+.line-item-description {
+    text-align: left;
+}
+
+.btn{background:var(--main-blue);color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:700;transition:background-color 0.2s;}
+.btn.secondary{background:transparent;color:var(--main-blue);border:1px solid var(--light-blue);padding:9px 12px;}
+.attachment-thumb{width:80px;height:60px;border-radius:6px;border:1px solid var(--light-blue);object-fit:cover;margin-right:6px;cursor:pointer;}
+/* Signature Font for names */
+@font-face {
+  font-family: 'Parveez';
+  src: local('Times New Roman'), local('Serif');
+}
+.table { 
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+.table thead th {
+    background: var(--header-bg);
+    color: var(--main-blue);
+    padding: 8px;
+    border: 1px solid var(--table-border-color);
+}
+.table tbody td {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+}
+.table tfoot td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    font-weight: bold;
+}
+
+/* --- Print Layout (A4 Single Page Flow) - Shared Styles for Print & View --- */
+
+@page { 
+    size: A4 portrait; 
+    margin: 5mm; /* Minimal margins */
+} 
+.print-doc{
+    width: 200mm; /* A4 width minus margins (210 - 10) */
+    margin: 0 auto;
+    background:#fff;
+    color:var(--text);
+    /* For View/Modal: Ensure it looks like A4 */
+    min-height: 297mm; /* Ensure A4 height for visual reference */
+}
+
+/* Voucher Half (Auto height) */
+.voucher-half {
+    max-width: 100%;
+    height: auto; /* FIX: Allow height to flow naturally */
+    min-height: auto; /* FIX: Allow height to flow naturally */
+    overflow: hidden; 
+    padding-bottom: 0; 
+    border-bottom: none; 
+}
+.voucher-box{
+        border:2px solid #2d4fa3;
+        padding:8mm 12mm;
+        box-sizing:border-box;
+
+    max-width:180mm; 
+    margin:0 auto;
+    border:2px solid var(--table-border-color);
+    padding:8mm 12mm;
+    border-radius:6px;
+    background:#fff;
+}
+
+/* Attachment Half - CRITICAL FIX 1: IMMEDIATE START */
+.attachment-half {
+    max-width: 100%;
+    min-height: auto; /* FIX: Allow height to flow naturally */
+    padding-top: 0px; /* Reduced to 0px for immediate start */
+    page-break-before: avoid;
+}
+.attachment-half h3 {
+    color: var(--red-voucher-no); /* MODIFIED: Changed color to red */
+    padding-bottom: 5px; 
+    margin: 0px 0 5px 0; /* Reduced top margin to 0px for tight fit below signature */
+    font-size: 18px; 
+    text-align: left; 
+    padding-left: 12mm; /* Align with voucher box padding */
+}
+
+/* Attachment Print Layout (4 in a row) - MODIFIED */
+.attachment-grid-print{
+        display:grid;
+        grid-template-columns: repeat(3, 1fr); /* 3 PER ROW */
+        column-gap:20px;
+        row-gap:28px; /* more space between rows */
+        width:100%; box-sizing:border-box; margin: 0 auto;
+        margin:0 auto;
+    }
+    .attachment-wrapper-print{
+        width:100%; box-sizing:border-box;
+        border:1px solid #ccc;
+        padding:4px;
+        border-radius:6px;
+        box-sizing:border-box;
+        page-break-inside:avoid;
+    }
+    .attachment-wrapper-print img{
+        width:100%;
+        height:auto;
+        object-fit:contain;
+
+        border:1px solid #ccc;
+
+        width:100%; box-sizing:border-box;
+        height:auto; max-height:90vh;
+        object-fit:contain; width:100%; height:auto;
+        image-rendering:auto;
+
+        width:100%; box-sizing:border-box;
+        height:auto;
+        object-fit:contain; width:100%; height:auto; image-rendering:auto;
+        display:block;
+        cursor:pointer;
+        background:#fff;
+    }
+
+/* Voucher Header/Metadata FIXES */
+.v-logo-title{
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    margin-bottom: 2px;
+    padding-top: 5px;
+}
+.voucher-meta-row { 
+    display: flex; 
+    justify-content: flex-start; 
+    align-items: baseline; 
+    margin-bottom: 8px; 
+    font-size: 14px; 
+    font-weight: 600; 
+}
+.voucher-no-display{
+    color: var(--red-voucher-no);
+    font-weight: 800;
+    font-size: 15px;
+    margin-left: 5px;
+}
+
+/* Signature Section FIXES */
+.v-signs{
+    display:flex;
+    gap:20px;
+    margin-top: 20px; /* Space from the table */
+    align-items:flex-end;
+    justify-content: space-around;
+} 
+.v-sign{
+    flex-basis: 40%; 
+    text-align:center;
+    min-height:90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+.sig-image{max-width:100%; box-sizing:border-box;max-height:70px;object-fit:contain; width:100%; height:auto; image-rendering:auto;margin-bottom:5px;} 
+
+/* Amount in Words Specific Style */
+.amount-words-text { 
+    color: var(--amount-words-color); /* Dark Brown */
+    font-weight: bold; 
+}
+
+/* Print Overrides */
+@media print {
+    /* Critical print style to ensure A4 dimensions */
+    .print-doc {
+        min-height: 287mm; 
+        border: none !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+}
+
+/* REMOVED: Secure Password Modal Styling */
+
+/* === Attachment controls (DELETE + DRAG) === */
+.attachment-wrapper{position:relative;}
+.attach-del{
+ position:absolute;top:4px;right:4px;
+ background:#fff;border-radius:50%;
+ width:20px;height:20px;
+ line-height:18px;text-align:center;
+ color:#c00;font-weight:900;
+ cursor:pointer;border:1px solid #ccc;
+}
+.attach-drag{
+ position:absolute;bottom:4px;left:4px;
+ font-size:14px;cursor:grab;color:#555;
+}
+
+
+/* FORCE DATE TO SINGLE LINE */
+.table td:nth-child(2),
+.table th:nth-child(2){
+    white-space: nowrap;
+}
+
+
+/* DATE COLUMN WIDTH FIX */
+.table th:nth-child(2),
+.table td:nth-child(2){
+    width: 120px;
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+
+/* VIEW PREVIEW ONLY – FORCE DATE COLUMN ONE LINE */
+#previewModal .table th:nth-child(2),
+#previewModal .table td:nth-child(2){
+    width: 140px;
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Vivistar Day Bill Voucher <button id="adminToggleBtn" style="float:right;font-size:12px;padding:4px 8px;">Admin</button></h2>
+  
+
+  <div class="card" id="appCard">
+    <form id="voucherForm" onsubmit="return false;">
+      
+      <div style="margin-bottom: 12px; display: none;">
+        <label>Company Logo (for Voucher Header)</label>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="file" id="logoInput" accept="image/*" style="flex-grow: 1;">
+          <img id="logoPreview" src="" alt="Logo Preview" style="max-height: 40px; width: auto; border: 1px solid #ccc; border-radius: 4px; padding: 2px; display: none;">
+        </div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr;gap:10px; margin-bottom: 15px;">
+        <div>
+          <label>Voucher No</label>
+          <input id="voucherNo" readonly type="text" placeholder="Voucher No" style="color: var(--red-voucher-no); font-weight: bold; text-align: left;">
+        </div>
+      </div>
+
+      <label>Bill Items (Date, Description & Amount)</label>
+      <table class="table" id="vdbLineItemTable">
+        <thead>
+          <tr>
+            <th style="width: 40px;" class="no-print">#</th>
+            <th style="width: 110px;">Date</th>
+            <th>Description</th>
+            <th style="width: 120px;">Amount (₹)</th>
+            <th style="width: 80px;" class="no-print">Action</th>
+          </tr>
+        </thead>
+        <tbody id="lineItemBody">
+          </tbody>
+        <tfoot id="lineItemFooter">
+          <tr class="vdb-total-row">
+            <td colspan="3" style="text-align: right;">Total Amount:</td>
+            <td id="totalAmountDisplay" style="text-align: center;">₹0.00</td>
+            <td class="no-print"></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="margin-top: 8px; margin-bottom: 15px;">
+        <button class="btn secondary" id="addLineItemBtn" type="button" style="padding: 6px 12px;">+ Add Item</button>
+      </div>
+
+      <div style="grid-column:1/3;">
+        <label>Amount in Words</label>
+        <textarea id="amtWords" readonly></textarea> 
+      </div>
+      
+      <div style="grid-column:1/3; margin-top: 15px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          
+          <div id="paidBySigBox">
+            <label style="font-weight:700; color:var(--main-blue);">Paid By (Sign/Attach)</label> 
+            <input id="paidBy" value="Parveez" type="text" style="font-family: 'Parveez', serif;">
+            <div id="paidBySignaturePreview" style="margin-top: 5px; text-align: center; border: 1px dashed #ccc; border-radius: 5px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa;">
+                <button class="btn secondary" type="button" onclick="openSignatureModal('paidBy')">Draw Signature (Dark Blue Pen)</button>
+                <div style="margin-top: 5px;">
+                    <input type="file" id="paidByAttachSig" accept="image/*" style="display: none;" onchange="handleSignatureAttach(this.files[0], 'paidBy')">
+                    <button class="btn secondary" type="button" onclick="document.getElementById('paidByAttachSig').click()">Attach Image</button>
+                </div>
+            </div>
+          </div>
+
+          <div id="approvedBySigBox">
+            <label style="font-weight:700; color:var(--main-blue);">Approved By (Sign/Attach)</label>
+            <input id="approvedBy" value="Dr.Kiran" type="text" style="font-family: 'Parveez', serif;">
+            <div id="approvedBySignaturePreview" style="margin-top: 5px; text-align: center; border: 1px dashed #ccc; border-radius: 5px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa;">
+                <button class="btn secondary" type="button" onclick="openSignatureModal('approvedBy')">Draw Signature (Dark Green Pen)</button>
+                <div style="margin-top: 5px;">
+                    <input type="file" id="approvedByAttachSig" accept="image/*" style="display: none;" onchange="handleSignatureAttach(this.files[0], 'approvedBy')">
+                    <button class="btn secondary" type="button" onclick="document.getElementById('approvedByAttachSig').click()">Attach Image</button>
+                </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      
+      <div style="grid-column:1/3; margin-top: 15px;">
+        <label>Bill Attachments (Images are compressed on upload)</label>
+        <input type="file" id="attachInput" multiple accept="image/*">
+        <div id="attachmentGrid" style="display:flex;flex-wrap:wrap;margin-top:8px;"></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="saveBtn">Save Voucher</button>
+        <button class="btn secondary" id="viewDaybookBtn" type="button">View Saved Vouchers</button>
+        <button class="btn secondary" id="exportBtn" type="button">Export JSON</button>
+        <button class="btn secondary" id="importBtn" type="button">Import JSON</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none;">
+      </div>
+    </form>
+  </div>
+
+  <div class="card" id="daybookPanel" style="margin-top:14px;display:none;">
+    <div style="margin-bottom: 10px;">
+      <strong>Saved Vouchers (Voucher No. Descending)</strong>
+      <div style="display:flex; align-items:center; gap: 8px; margin-top: 8px;">
+          <input type="text" id="searchDaybookInput" placeholder="Search (No, Date, Description, Amt)" style="flex-grow: 1; height: 32px; padding: 4px 8px; font-size: 13px;">
+          <button class="btn secondary no-print" id="closeDaybookBtn" type="button" style="padding: 6px 10px; flex-shrink: 0;">Close</button>
+      </div>
+    </div>
+
+    <div id="daybookTotalsDisplay" style="display: flex; justify-content: space-around; padding: 10px; margin-bottom: 10px; border: 1px solid var(--light-blue); border-radius: 5px; background: #f0f4ff;">
+        <div style="font-weight: 700; color: var(--main-blue);">Total Vouchers Saved: <span id="totalVouchers">0</span></div>
+        <div style="font-weight: 700; color: var(--main-blue);">Total of Selected Vouchers: <span id="selectedTotalAmount">₹0.00</span></div>
+    </div>
+    <div id="daybookTableContainer">
+      <table class="table" id="daybookTable">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;" class="no-print">Select</th>
+            <th style="text-align: center;">Voucher No</th>
+            <th style="text-align: center;">Total Amount</th>
+            <th class="no-print" style="text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="daybookBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="previewModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;">
+  <div style="background:#fff;padding:12px;border-radius:0;max-width:100vw;max-height:100vh;overflow:auto;width:100vw;height:100vh;">
+    <div style="text-align:right;"><button onclick="closePreview()" class="btn secondary">Close Preview</button></div>
+    <div id="previewBody" style="width:100%; box-sizing:border-box;max-width:100%; box-sizing:border-box;height:calc(100vh - 48px);overflow:auto;margin:auto;background:#fff;"></div>
+  </div>
+</div>
+
+<div id="signatureModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center; z-index: 10001;">
+    <div id="signatureModalContent" style="background: #fff; padding: 15px; border-radius: 8px; max-width: 90%; width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <h3 id="signatureModalTitle" style="color:var(--main-blue); margin-top: 0;">Draw Signature</h3>
+        <p style="font-size: 12px; margin-bottom: 10px;"><span id="penColorHint"></span></p>
+        <canvas id="signatureCanvas" width="570" height="200" style="border: 1px solid #ccc; background: #f7f7f7; cursor: crosshair; display: block;"></canvas>
+        <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+            <div>
+                <button class="btn secondary" id="sigClearBtn" type="button">Clear</button>
+            </div>
+            <div>
+                <button class="btn secondary" id="sigCancelBtn" type="button">Cancel</button>
+                <button class="btn" id="sigSaveBtn" type="button">Save Signature</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="attachmentDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;z-index:10003;padding:12px;">
+    <div style="background:#fff;padding:15px;border-radius:8px;max-width:90%;max-height:90%;overflow:auto; width: 600px; max-width: 900px;">
+        <h3 id="attachmentModalTitle" style="color:var(--main-blue); margin-top: 0;">Attachment Details</h3>
+        <div id="attachmentImageWrapper" style="text-align: center; margin-bottom: 10px;">
+            </div>
+        
+        <label>Caption</label>
+        <input type="text" id="attachmentCaptionInput" placeholder="Add/Edit Caption" style="margin-bottom: 15px; height: 38px;">
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn secondary" id="attachViewFullSizeBtn" type="button">View Full Size</button>
+                <button class="btn secondary" id="attachPrintBtn" type="button">Print Image</button>
+                <button class="btn secondary" id="attachSavePdfBtn" type="button">Save as PDF</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn secondary" id="attachDeleteBtn" type="button" style="background: #f9e1e1; color: #cc0000; border-color: #f0caca;">Delete Attachment</button>
+                <button class="btn" id="attachCloseBtn" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="loadingOverlay" class="loading-overlay" style="display:none; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 10002; font-weight: bold; color: var(--main-blue);">Initializing App...</div>
+
+<script>
+// --- Configuration ---
+
+// ================= SUPABASE CONFIG =================
+const SUPABASE_URL = "https://ujdcafdstdfxppritbsb.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqZGNhZmRzdGRmeHBwcml0YnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDQwNzAsImV4cCI6MjA4NjkyMDA3MH0.edOVI2c2FwILWlxFxcBZhdnxHQ8QedvA4zE1Sva4Kpg";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function saveVoucherToSupabase(voucherData) {
+    const { error } = await supabaseClient
+        .from("vouchers")
+        .upsert({
+            voucherNo: voucherData.voucherNo,
+            data: voucherData
+        });
+
+    if (error) {
+        console.error("Supabase Save Error:", error.message);
+    }
+}
+
+async function loadFromSupabase() {
+    const { data, error } = await supabaseClient
+        .from("vouchers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (!error && data) {
+        vouchers = data.map(item => item.data);
+        renderDaybook(vouchers);
+
+        let maxVouchNo = INITIAL_VOUCHER_NUMBER;
+        vouchers.forEach(v => {
+            const numPart = parseInt((v.voucherNo || "VDB-0").split('-')[1], 10);
+            if (!isNaN(numPart) && numPart > maxVouchNo) {
+                maxVouchNo = numPart;
+            }
+        });
+        maxVoucherNumber = maxVouchNo;
+        resetForm(false);
+    } else {
+        console.error("Supabase Load Error:", error?.message);
+    }
+}
+
+const DB_NAME = 'VivistarDayBillDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'vouchers';
+const VOUCHER_PREFIX = 'VDB-';
+const INITIAL_VOUCHER_NUMBER = 1000;
+const MAX_FILE_SIZE_MB = 10; 
+
+// REMOVED: Password Obfuscation Configuration
+
+let db; 
+let vouchers = []; 
+let maxVoucherNumber = INITIAL_VOUCHER_NUMBER; 
+// currentImages now stores objects: [{base64: '...', caption: '...'}, ...]
+let currentImages = []; 
+let currentLogoBase64 = ''; 
+let paidBySignature = '';
+let approvedBySignature = '';
+
+// Signature Pad variables
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+let ctx;
+let sigType = ''; 
+
+// VITAL FIX: Store computed colors for canvas strokeStyle
+let paidByDrawColor;
+let approvedByDrawColor;
+
+// NEW: The index of the attachment currently open in the modal
+let currentAttachmentIndex = -1;
+
+// REMOVED: Variables for Secure Password Modal
+
+
+const DOM = {
+    voucherNo: document.getElementById('voucherNo'),
+    lineItemBody: document.getElementById('lineItemBody'),
+    totalAmountDisplay: document.getElementById('totalAmountDisplay'),
+    amtWords: document.getElementById('amtWords'),
+    paidBy: document.getElementById('paidBy'),
+    approvedBy: document.getElementById('approvedBy'),
+    attachInput: document.getElementById('attachInput'),
+    attachmentGrid: document.getElementById('attachmentGrid'),
+    logoInput: document.getElementById('logoInput'),
+    logoPreview: document.getElementById('logoPreview'),
+    saveBtn: document.getElementById('saveBtn'),
+    addLineItemBtn: document.getElementById('addLineItemBtn'),
+    viewDaybookBtn: document.getElementById('viewDaybookBtn'), 
+
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    daybookPanel: document.getElementById('daybookPanel'),
+    daybookBody: document.getElementById('daybookBody'),
+    searchDaybookInput: document.getElementById('searchDaybookInput'),
+    totalVouchers: document.getElementById('totalVouchers'),
+    selectedTotalAmount: document.getElementById('selectedTotalAmount'), 
+    
+    signatureModal: document.getElementById('signatureModal'),
+    signatureCanvas: document.getElementById('signatureCanvas'),
+    sigClearBtn: document.getElementById('sigClearBtn'),
+    sigSaveBtn: document.getElementById('sigSaveBtn'),
+    sigCancelBtn: document.getElementById('sigCancelBtn'),
+    penColorHint: document.getElementById('penColorHint'),
+    
+    exportBtn: document.getElementById('exportBtn'),
+    importBtn: document.getElementById('importBtn'),
+    importFileInput: document.getElementById('importFileInput'),
+    
+    // NEW ATTACHMENT MODAL ELEMENTS
+    attachmentDetailModal: document.getElementById('attachmentDetailModal'),
+    attachmentImageWrapper: document.getElementById('attachmentImageWrapper'),
+    attachmentCaptionInput: document.getElementById('attachmentCaptionInput'),
+    attachViewFullSizeBtn: document.getElementById('attachViewFullSizeBtn'),
+    attachPrintBtn: document.getElementById('attachPrintBtn'),
+    attachSavePdfBtn: document.getElementById('attachSavePdfBtn'),
+    attachDeleteBtn: document.getElementById('attachDeleteBtn'),
+    attachCloseBtn: document.getElementById('attachCloseBtn'),
+    
+    // REMOVED: SECURE PASSWORD MODAL ELEMENTS
+};
+
+// --- Utility Functions (Including IndexedDB and NumberToWords) ---
+
+function alertCustom(message) {
+    // Replaced the prompt-based alert with a standard alert for better UX
+    alert(message); 
+}
+function confirmCustom(message) {
+    // MODIFIED: Changed to standard browser confirm to remove 'Type YES' requirement
+    return window.confirm(message);
+}
+
+// REMOVED: Secure Password Handling Functions
+
+function formatDateForDisplay(dateStr) { 
+    if (!dateStr || dateStr.length !== 10) return dateStr; 
+    const parts = dateStr.split('-'); 
+    return `${parts[2]}-${parts[1]}-${parts[0]}`; 
+}
+
+function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+
+function numberToWords(num) {
+    const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    function getTensWords(n) { if (n < 20) return a[n]; return b[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + a[n % 10] : ""); }
+    function convertToRupees(n) {
+        let str = "";
+        let crores = Math.floor(n / 10000000);
+        n %= 10000000;
+        if (crores > 0) str += getTensWords(crores) + " Crore ";
+        let lakhs = Math.floor(n / 100000);
+        n %= 100000;
+        if (lakhs > 0) str += getTensWords(lakhs) + " Lakh ";
+        let thousands = Math.floor(n / 1000);
+        n %= 1000;
+        if (thousands > 0) str += getTensWords(thousands) + " Thousand ";
+        let hundreds = Math.floor(n / 100);
+        n %= 100;
+        if (hundreds > 0) str += a[hundreds] + " Hundred ";
+        if (n > 0) str += (hundreds > 0 ? "and " : "") + getTensWords(n);
+        return str.trim();
+    }
+
+    const numStr = parseFloat(num).toFixed(2);
+    const parts = numStr.split('.');
+    const rupees = parseInt(parts[0], 10);
+    const paisa = parseInt(parts[1], 10);
+    
+    let finalStr = "";
+    
+    if (rupees > 0) {
+        finalStr += convertToRupees(rupees) + " Rupees";
+    }
+
+    if (paisa > 0) {
+        const paisaWords = getTensWords(paisa);
+        finalStr += (finalStr ? " and " : "") + paisaWords + " Paisa only";
+    } else {
+        if (finalStr) {
+            finalStr += " only";
+        } else {
+            finalStr = "Zero Rupees only";
+        }
+    }
+    return finalStr.trim();
+}
+
+function compressImage(file, maxWidth = 1600, quality = 0.9) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxWidth) {
+                        width *= maxWidth / height;
+                        height = maxWidth;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = reject;
+            img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// IndexedDB Functions
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = (event) => { reject(event.target.error); };
+        request.onsuccess = (event) => { db = event.target.result; resolve(db); };
+        request.onupgradeneeded = (event) => {
+            const db_new = event.target.result;
+            if (!db_new.objectStoreNames.contains(STORE_NAME)) {
+                db_new.createObjectStore(STORE_NAME, { keyPath: 'voucherNo' });
+            }
+        };
+    });
+}
+
+async function loadVouchersFromDatabase(showErrorAlert = true) {
+    DOM.loadingOverlay.style.display = 'flex';
+    DOM.loadingOverlay.textContent = 'Loading Vouchers...';
+    try {
+        await openDB(); 
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const getAllRequest = store.getAll();
+
+        await new Promise((resolve, reject) => {
+            getAllRequest.onsuccess = (event) => {
+                const storedVouchers = event.target.result;
+                vouchers = storedVouchers || [];
+                
+                let maxVouchNo = INITIAL_VOUCHER_NUMBER;
+                vouchers.forEach(data => {
+                    const numPartStr = (data.voucherNo || VOUCHER_PREFIX + '0').split('-')[1];
+                    const numPart = parseInt(numPartStr, 10);
+                    if (!isNaN(numPart) && numPart > maxVouchNo) {
+                        maxVouchNo = numPart;
+                    }
+                });
+
+                maxVoucherNumber = maxVouchNo;
+                
+                vouchers.sort((a, b) => {
+                    const numA = parseInt((a.voucherNo || VOUCHER_PREFIX + '0').split('-')[1], 10);
+                    const numB = parseInt((b.voucherNo || VOUCHER_PREFIX + '0').split('-')[1], 10);
+                    return numB - numA;
+                });
+
+                resolve();
+            };
+            getAllRequest.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+
+    } catch (e) {
+        console.error("Failed to load vouchers from IndexedDB:", e);
+        if (showErrorAlert) alertCustom("Failed to load data from database.");
+    } finally {
+        DOM.loadingOverlay.style.display = 'none';
+        renderDaybook(vouchers);
+    }
+}
+
+async function saveVoucherToDatabase(v) {
+    DOM.loadingOverlay.style.display = 'flex';
+    DOM.loadingOverlay.textContent = 'Saving Entry...';
+    DOM.saveBtn.disabled = true;
+    try {
+        await openDB();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        
+        await new Promise((resolve, reject) => {
+            const request = store.put(v);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event);
+        });
+
+        await loadVouchersFromDatabase(false); 
+        alertCustom(`Entry ${v.voucherNo} saved successfully. Click 'View Saved Vouchers' to see it.`);
+        resetForm(true);
+    } catch (e) {
+        // Log the error for debugging the 'Cannot set properties of null'
+        console.error("Database Save Error Details:", e);
+        const errMsg = e.message || (e.target && e.target.error ? e.target.error.name : 'Unknown error');
+        alertCustom(`ERROR: Failed to save to database. Cause: ${errMsg}.`);
+    } finally {
+        DOM.loadingOverlay.style.display = 'none';
+        DOM.saveBtn.disabled = false;
+    }
+}
+
+function saveVoucher(v) {
+    // Check if voucherNo exists, if not, assign a new one
+    let isExisting = false;
+    if (vouchers.some(item => item.voucherNo === v.voucherNo)) {
+        isExisting = true;
+    }
+    if (!isExisting) {
+        maxVoucherNumber += 1;
+        const nextVoucherNo = VOUCHER_PREFIX + maxVoucherNumber;
+        v.voucherNo = nextVoucherNo;
+    }
+    saveVoucherToDatabase(v);
+    saveVoucherToSupabase(v);
+}
+
+// MODIFIED: Removed password protection
+async function deleteVoucherFromDatabase(voucherNo) {
+    if (!confirmCustom(`Are you absolutely sure you want to permanently delete voucher ${voucherNo}?`)) {
+        return;
+    }
+    
+    DOM.loadingOverlay.style.display = 'flex';
+    DOM.loadingOverlay.textContent = 'Deleting Entry...';
+    try {
+        await openDB();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+
+        await new Promise((resolve, reject) => {
+            const request = store.delete(voucherNo);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event);
+        });
+
+        await loadVouchersFromDatabase(false);
+        alertCustom(`Voucher ${voucherNo} deleted successfully.`);
+        renderDaybook(vouchers);
+    } catch (e) {
+        console.error("Database Delete Error:", e);
+        alertCustom("ERROR: Failed to delete voucher from database.");
+    } finally {
+        DOM.loadingOverlay.style.display = 'none';
+    }
+}
+
+function updateLineItemTotal() {
+    let total = 0;
+    const rows = DOM.lineItemBody.querySelectorAll('.line-item-row');
+    rows.forEach(tr => {
+        const input = tr.querySelector('.line-item-amount');
+        const amount = parseFloat(input.value) || 0;
+        total += amount;
+    });
+    const totalStr = total.toFixed(2);
+    DOM.totalAmountDisplay.textContent = `₹${totalStr}`;
+    DOM.amtWords.value = numberToWords(totalStr);
+}
+
+function addLineItem(date = '', description = '', amount = '') {
+    const tbody = DOM.lineItemBody;
+    const rowCount = tbody.children.length;
+    const defaultDate = date || new Date().toISOString().substring(0, 10);
+    const tr = document.createElement('tr');
+    tr.className = 'line-item-row';
+    // REMOVED: redundant inline style 'font-weight: bold;' from description input
+    tr.innerHTML = `
+        <td style="text-align: center;" class="no-print">${rowCount + 1}</td>
+        <td><input type="date" class="line-item-date" value="${escapeHtml(defaultDate)}"></td>
+        <td><input type="text" class="line-item-description" value="${escapeHtml(description)}" placeholder="Enter description..." oninput="updateLineItemTotal()" style="text-align: left;"></td>
+        <td><input type="number" step="0.01" class="line-item-amount" value="${parseFloat(amount).toFixed(2)}" oninput="updateLineItemTotal()"></td>
+        <td class="no-print" style="text-align: center;">
+            <button class="btn secondary" type="button" style="padding: 4px 8px; background: #f9e1e1; color: #cc0000; border-color: #f0caca;" onclick="removeLineItem(this)">Remove</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    tr.querySelector('.line-item-amount').addEventListener('input', updateLineItemTotal);
+    tr.querySelector('.line-item-description').addEventListener('input', updateLineItemTotal);
+    updateLineItemTotal();
+}
+
+// MODIFIED: Removed password protection and async
+function removeLineItem(button) {
+    if (DOM.lineItemBody.children.length > 1) {
+        button.closest('tr').remove();
+        updateLineItemTotal();
+        DOM.lineItemBody.querySelectorAll('.line-item-row').forEach((row, index) => {
+            row.querySelector('.no-print').textContent = index + 1;
+        });
+    } else {
+        alertCustom("Cannot remove the last line item. Please enter '0.00' if it's not applicable.");
+    }
+}
+
+function collectVoucherData() {
+    const items = [];
+    DOM.lineItemBody.querySelectorAll('.line-item-row').forEach(tr => {
+        items.push({
+            date: tr.querySelector('.line-item-date').value,
+            description: tr.querySelector('.line-item-description').value,
+            amount: parseFloat(tr.querySelector('.line-item-amount').value) || 0,
+        });
+    });
+    
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0).toFixed(2);
+    
+    // Determine the daybook date from the first item, or today's date if empty
+    const daybookDate = items.length > 0 && items[0].date ? items[0].date : new Date().toISOString().substring(0, 10);
+
+    return {
+        voucherNo: DOM.voucherNo.value,
+        daybookDate: daybookDate, // Store the date of the first item for easy sorting/searching
+        totalAmount: totalAmount,
+        items: items,
+        paidBy: DOM.paidBy.value,
+        approvedBy: DOM.approvedBy.value,
+        attachments: currentImages, // Use the new image object array
+        paidBySignature: paidBySignature,
+        approvedBySignature: approvedBySignature,
+        logoBase64: currentLogoBase64,
+        timestamp: new Date().getTime(), // Add timestamp for sorting
+    };
+}
+
+function resetForm(isSaveAction = true) {
+    // Determine the next voucher number
+    const nextVoucherNo = VOUCHER_PREFIX + (maxVoucherNumber + 1);
+    DOM.voucherNo.value = isSaveAction ? nextVoucherNo : (DOM.voucherNo.value || nextVoucherNo);
+    DOM.lineItemBody.innerHTML = '';
+    const today = new Date().toISOString().substring(0, 10);
+    addLineItem(today, '', '0.00');
+    DOM.paidBy.value = "Parveez";
+    DOM.approvedBy.value = "Dr.Kiran";
+    // --- FIX: Ensure dynamic file inputs are cleared safely and state variables are set ---
+    currentImages = [];
+    DOM.attachmentGrid.innerHTML = '';
+    if (DOM.attachInput) DOM.attachInput.value = '';
+    paidBySignature = '';
+    approvedBySignature = '';
+    // Use null check to prevent error if elements are not present (though they should be after re-render)
+    const paidByAttachSig = document.getElementById('paidByAttachSig');
+    const approvedByAttachSig = document.getElementById('approvedByAttachSig');
+    if (paidByAttachSig) paidByAttachSig.value = '';
+    if (approvedByAttachSig) approvedByAttachSig.value = '';
+    // Re-render the previews to ensure the "Draw Signature" buttons are shown
+    renderSignaturePreview('paidBy');
+    renderSignaturePreview('approvedBy');
+    // ----------------------------------------------------------------------------------
+    updateLineItemTotal();
+    DOM.saveBtn.textContent = 'Save Voucher';
+}
+
+// --- Signature Pad Functions ---
+function initSignatureCanvas() {
+    ctx = DOM.signatureCanvas.getContext('2d');
+    ctx.lineWidth = 5; // MODIFIED: Increased line width for boldness and smoothness
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    DOM.signatureCanvas.addEventListener('mousedown', startDrawing);
+    DOM.signatureCanvas.addEventListener('mouseup', stopDrawing);
+    DOM.signatureCanvas.addEventListener('mousemove', draw);
+    DOM.signatureCanvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (e.touches.length > 0) startDrawing(e.touches[0]);
+    });
+    DOM.signatureCanvas.addEventListener('touchend', stopDrawing);
+    DOM.signatureCanvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length > 0) draw(e.touches[0]);
+    });
+}
+function startDrawing(e) {
+    isDrawing = true;
+    [lastX, lastY] = getCanvasCoordinates(e);
+}
+function stopDrawing() {
+    isDrawing = false;
+    ctx.beginPath(); // Stop drawing the continuous line
+}
+function draw(e) {
+    if (!isDrawing) return;
+    const [x, y] = getCanvasCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = sigType === 'paidBy' ? paidByDrawColor : approvedByDrawColor;
+    ctx.stroke();
+    [lastX, lastY] = [x, y];
+}
+function getCanvasCoordinates(e) {
+    const rect = DOM.signatureCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    return [x, y];
+}
+function clearCanvas() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, DOM.signatureCanvas.width, DOM.signatureCanvas.height);
+}
+function openSignatureModal(type) {
+    sigType = type;
+    const title = type === 'paidBy' ? 'Draw Paid By Signature' : 'Draw Approved By Signature';
+    const color = type === 'paidBy' ? getComputedStyle(document.documentElement).getPropertyValue('--blue-pen') : getComputedStyle(document.documentElement).getPropertyValue('--green-pen');
+    const colorName = type === 'paidBy' ? 'Dark Blue Pen' : 'Dark Green Pen';
+    
+    // Store for use in draw function
+    paidByDrawColor = getComputedStyle(document.documentElement).getPropertyValue('--blue-pen');
+    approvedByDrawColor = getComputedStyle(document.documentElement).getPropertyValue('--green-pen');
+
+    document.getElementById('signatureModalTitle').textContent = title;
+    DOM.penColorHint.textContent = `Pen Color: ${colorName}`;
+    DOM.signatureModal.style.display = 'flex';
+    
+    // Ensure canvas is ready and cleared
+    clearCanvas();
+    // Re-draw existing signature if present
+    setTimeout(() => {
+        if (!ctx) return;
+        const existingSig = type === 'paidBy' ? paidBySignature : approvedBySignature;
+        if (existingSig) {
+            const img = new Image();
+            img.onload = () => {
+                const w = DOM.signatureCanvas.width;
+                const h = DOM.signatureCanvas.height;
+                ctx.drawImage(img, 0, 0, w, h);
+            };
+            img.src = existingSig;
+        }
+    }, 50);
+}
+function closeSignatureModal() {
+    DOM.signatureModal.style.display = 'none';
+    sigType = '';
+}
+DOM.sigCancelBtn.addEventListener('click', closeSignatureModal);
+
+// MODIFIED: Removed password protection
+DOM.sigClearBtn.addEventListener('click', () => { 
+    clearCanvas(); 
+});
+
+DOM.sigSaveBtn.addEventListener('click', () => {
+    // Check if the canvas is blank (by checking pixel data for non-zero channels)
+    const data = ctx.getImageData(0, 0, DOM.signatureCanvas.width, DOM.signatureCanvas.height).data;
+    const isBlank = !data.some(channel => channel !== 0);
+    // --- FIX FOR BUG 2: Save empty string if canvas is blank, allowing a clear action from the modal ---
+    const dataUrl = isBlank ? '' : DOM.signatureCanvas.toDataURL('image/png');
+    // --------------------------------------------------------------------------------------------------
+    // Proceed to save if dataUrl is non-blank OR if the user is explicitly saving a blank canvas
+    if (sigType === 'paidBy') {
+        paidBySignature = dataUrl;
+    } else {
+        approvedBySignature = dataUrl;
+    }
+    renderSignaturePreview(sigType);
+    closeSignatureModal();
+});
+
+function handleSignatureAttach(file, type) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        return alertCustom("Invalid file type. Please attach an image.");
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (type === 'paidBy') {
+            paidBySignature = e.target.result;
+        } else {
+            approvedBySignature = e.target.result;
+        }
+        renderSignaturePreview(type);
+        // Clear the input file element's value to allow re-uploading the same file
+        const fileInput = document.getElementById(type + 'AttachSig');
+        if (fileInput) { fileInput.value = ''; }
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearSignature(type, shouldConfirm = true) {
+    // Uses the modified confirmCustom (now a simple window.confirm)
+    if (shouldConfirm && !confirmCustom("Are you sure you want to clear the signature?")) return;
+    if (type === 'paidBy') {
+        paidBySignature = '';
+    } else {
+        approvedBySignature = '';
+    }
+    // Safely clear the associated file input value (if it exists)
+    const fileInput = document.getElementById(type + 'AttachSig');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    // Re-render the preview to show the "Draw Signature" buttons
+    renderSignaturePreview(type);
+    // ----------------------------------------------------------------------------------
+}
+
+function renderSignaturePreview(type) {
+    const previewDiv = document.getElementById(type + 'SignaturePreview');
+    const signature = type === 'paidBy' ? paidBySignature : approvedBySignature;
+    previewDiv.innerHTML = '';
+
+    if (signature) {
+        const img = document.createElement('img');
+        img.src = signature;
+        img.className = 'sig-image';
+        img.alt = type + ' Signature';
+        previewDiv.style.minHeight = 'auto';
+        previewDiv.style.justifyContent = 'flex-start';
+        previewDiv.style.border = '1px solid var(--main-blue)';
+        previewDiv.appendChild(img);
+        
+        const buttonDiv = document.createElement('div');
+        buttonDiv.style.marginTop = '5px';
+        buttonDiv.innerHTML = `
+            <button class="btn secondary" type="button" onclick="openSignatureModal('${type}')" style="margin-right: 5px; padding: 4px 8px;">Edit</button>
+            <button class="btn secondary" type="button" onclick="clearSignature('${type}')" style="color: red; padding: 4px 8px;">Clear</button>
+        `;
+        previewDiv.appendChild(buttonDiv);
+    } else {
+        previewDiv.style.minHeight = '80px';
+        previewDiv.style.justifyContent = 'center';
+        previewDiv.style.border = '1px dashed #ccc';
+        // --- IMPORTANT: This re-inserts the file input element when cleared ---
+        previewDiv.innerHTML = `
+            <button class="btn secondary" type="button" onclick="openSignatureModal('${type}')">Draw Signature (${type === 'paidBy' ? 'Dark Blue' : 'Dark Green'} Pen)</button>
+            <div style="margin-top: 5px;">
+                <input type="file" id="${type}AttachSig" accept="image/*" style="display: none;" onchange="handleSignatureAttach(this.files[0], '${type}')">
+                <button class="btn secondary" type="button" onclick="document.getElementById('${type}AttachSig').click()">Attach Image</button>
+            </div>
+        `;
+    }
+}
+
+// --- Attachment Modal Functions ---
+function openAttachmentDetailModal(index) {
+    currentAttachmentIndex = index;
+    const attachment = currentImages[index];
+    if (!attachment) return closeAttachmentDetailModal();
+
+    // 1. Set Image Source
+    DOM.attachmentImageWrapper.innerHTML = `<img src="${attachment.base64}" alt="${attachment.caption || 'Attachment'}" style="max-width: 100%; max-height: 400px; height: auto; object-fit: contain; border-radius: 4px;">`;
+
+    // 2. Set Caption Input
+    DOM.attachmentCaptionInput.value = attachment.caption || '';
+    DOM.attachmentCaptionInput.oninput = (e) => {
+        // Update the in-memory object on change
+        currentImages[index].caption = e.target.value;
+        document.getElementById('attachmentModalTitle').textContent = `Attachment Details - ${e.target.value || `Image ${index + 1}`}`;
+    };
+
+    // 3. Setup Buttons (passing current index/data)
+    DOM.attachViewFullSizeBtn.onclick = () => viewImage(attachment.base64);
+    DOM.attachPrintBtn.onclick = () => printImage(attachment.base64);
+    DOM.attachSavePdfBtn.onclick = () => saveImageAsPdf(attachment.base64, attachment.caption || `Voucher_Attachment_${index + 1}`);
+    DOM.attachDeleteBtn.onclick = () => deleteAttachmentFromModal(index); // This button now calls the unprotected function
+
+    // 4. Open Modal
+    document.getElementById('attachmentModalTitle').textContent = `Attachment Details - ${attachment.caption || `Image ${index + 1}`}`;
+    DOM.attachmentDetailModal.style.display = 'flex';
+}
+
+function closeAttachmentDetailModal() {
+    DOM.attachmentDetailModal.style.display = 'none';
+    currentAttachmentIndex = -1;
+    renderAttachmentPreviews(); // Re-render in case caption changed or item was deleted
+}
+
+function viewImage(base64) {
+    const w = window.open('about:blank', '_blank');
+    w.document.write(`<html><head><title>Full Size Image</title></head><body style="margin:0; text-align:center; background:#000;"><img src="${base64}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 100vh;"></body></html>`);
+    w.document.close();
+}
+
+function printImage(base64) {
+    const w = window.open('about:blank', '_blank');
+    const html = `<!doctype html><html><head><title>Print Attachment</title><style>@page { size: auto; margin: 0; } body{margin: 0; padding: 0;} img{width: auto; max-width: 100vw; height: auto; max-height: 100vh; display: block;}
+/* === Attachment controls (DELETE + DRAG) === */
+.attachment-wrapper{position:relative;}
+.attach-del{
+ position:absolute;top:4px;right:4px;
+ background:#fff;border-radius:50%;
+ width:20px;height:20px;
+ line-height:18px;text-align:center;
+ color:#c00;font-weight:900;
+ cursor:pointer;border:1px solid #ccc;
+}
+.attach-drag{
+ position:absolute;bottom:4px;left:4px;
+ font-size:14px;cursor:grab;color:#555;
+}
+
+
+/* FORCE DATE TO SINGLE LINE */
+.table td:nth-child(2),
+.table th:nth-child(2){
+    white-space: nowrap;
+}
+
+
+/* DATE COLUMN WIDTH FIX */
+.table th:nth-child(2),
+.table td:nth-child(2){
+    width: 120px;
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+
+/* VIEW PREVIEW ONLY – FORCE DATE COLUMN ONE LINE */
+#previewModal .table th:nth-child(2),
+#previewModal .table td:nth-child(2){
+    width: 140px;
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+</style></head><body><img src="${base64}"></body></html>`;
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => w.print();
+}
+
+function saveImageAsPdf(base64, filename) {
+    DOM.loadingOverlay.style.display = 'flex';
+    DOM.loadingOverlay.textContent = 'Preparing PDF...';
+    try {
+        const img = new Image();
+        img.onload = () => {
+            const element = document.createElement('div');
+            element.style.padding = '10mm';
+            element.style.textAlign = 'center';
+            element.innerHTML = `<img src="${base64}" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">`;
+
+            const opt = {
+                margin: 10,
+                filename: `${filename}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().from(element).set(opt).save().then(() => {
+                DOM.loadingOverlay.style.display = 'none';
+            });
+        };
+        img.src = base64;
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+        alertCustom("An error occurred while generating the PDF.");
+        DOM.loadingOverlay.style.display = 'none';
+    }
+}
+
+// NEW FUNCTION: Unprotected delete for attachment modal
+function deleteAttachmentFromModal(index) {
+    if (!window.confirm(`Are you sure you want to delete Attachment ${index + 1}?`)) return;
+    currentImages.splice(index, 1);
+    closeAttachmentDetailModal();
+}
+
+// --- Voucher HTML Generation & Print Functions ---
+function renderVoucherHTML(v) {
+    
+    const logoHTML = v.logoBase64 && v.logoBase64.length > 10 ? `<img src="${escapeHtml(v.logoBase64)}" alt="Company Logo" style="max-height: 40px; width: auto; margin-right: 5px; object-fit: contain;">` : '';
+    const headerHTML = `
+        <div class="v-logo-title">
+            ${logoHTML}
+            <div style="text-align:center;">
+                <h2 style="font-size: 24px; color: var(--main-blue); margin: 0; line-height: 1.1;">VIVISTAR DAY BILL VOUCHER</h2>
+            </div>
+        </div>
+    `;
+
+    const paidBySigImg = v.paidBySignature ? `<img src="${escapeHtml(v.paidBySignature)}" alt="Paid By Signature" class="sig-image">` : '';
+    const approvedBySigImg = v.approvedBySignature ? `<img src="${escapeHtml(v.approvedBySignature)}" alt="Approved By Signature" class="sig-image">` : '';
+
+    const sigsHTML = `
+        <div class="v-signs">
+            <div class="v-sign">
+                ${paidBySigImg}
+                <div style="border-top: 1px dashed var(--light-blue); width: 100%;"></div>
+                <div style="font-weight: normal; font-size: 13px; margin-top: 2px; line-height: 1.2;">Paid By</div>
+                <div style="font-weight: bold; line-height: 1.2; padding-bottom: 5px; font-family: 'Parveez', serif;">${escapeHtml(v.paidBy || 'Parveez')}</div>
+            </div>
+            <div class="v-sign">
+                ${approvedBySigImg}
+                <div style="border-top: 1px dashed var(--light-blue); width: 100%;"></div>
+                <div style="font-weight: normal; font-size: 13px; margin-top: 2px; line-height: 1.2;">Approved By</div>
+                <div style="font-weight: bold; line-height: 1.2; padding-bottom: 5px; font-family: 'Parveez', serif;">${escapeHtml(v.approvedBy || 'Dr.Kiran')}</div>
+            </div>
+        </div>
+    `;
+
+    const tableStyle = "border-collapse: collapse; border: 1px solid var(--table-border-color); margin-top: 10px; width: 100%; font-size: 14px;";
+    const thStyle = "background: var(--header-bg); color: var(--main-blue); padding: 8px; border: 1px solid var(--table-border-color); text-align: center;";
+    const tdStyle = "padding: 6px 8px; border: 1px solid var(--table-border-color); text-align: center;";
+
+    let itemsHTML = v.items.map((item, index) => {
+        return `
+            <tr>
+                <td style="${tdStyle} width: 4%; font-weight: bold;">${index + 1}</td>
+                <td style="${tdStyle} width: 15%; font-weight: bold;">${formatDateForDisplay(escapeHtml(item.date))}</td>
+                <td style="${tdStyle} width: 51%; font-weight: bold; text-align: center;">${escapeHtml(item.description)}</td>
+                <td style="${tdStyle} width: 30%; font-weight: 800; text-align: center;">₹${parseFloat(item.amount).toFixed(2)}</td>
+                </tr>
+        `;
+    }).join('');
+
+    const totalInWords = numberToWords(v.totalAmount);
+
+    const voucherBodyHTML = `
+        ${headerHTML}
+        
+        <div class="voucher-box">
+            <div class="voucher-meta-row">
+                Voucher No: <span class="voucher-no-display">${escapeHtml(v.voucherNo)}</span>
+            </div>
+
+            <table style="${tableStyle}">
+                <thead>
+                    <tr>
+                        <th style="${thStyle}">S/No</th>
+                        <th style="${thStyle}">Date</th>
+                        <th style="${thStyle}">Description</th>
+                        <th style="${thStyle}">Amount (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHTML}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="${tdStyle} text-align: right; color : red; background: var(--header-bg);"><strong>TOTAL AMOUNT:</strong></td>
+                        <td style="${tdStyle} font-weight: 900; background: var(--header-bg); text-align: center; color : red;">₹${escapeHtml(v.totalAmount)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div style="font-size: 14px; margin-top: 10px; padding: 4px 0; border-top: 1px dashed #ccc;">
+                <strong>Amount in Words:</strong> <span class="amount-words-text">${totalInWords}</span>
+            </div>
+
+            ${sigsHTML}
+        </div>
+    `;
+
+    return voucherBodyHTML;
+}
+
+function renderAttachmentHTML(v) {
+    let imgsHTML = `
+        <h3 style="margin-top: 0px; color: var(--red-voucher-no);">Bill Attachments (${escapeHtml(v.voucherNo)})</h3>
+    `;
+    if (!v.attachments || v.attachments.length === 0) {
+        // Use the same padding as the h3 for alignment when no attachments exist
+        imgsHTML += '<div style="text-align: left; padding: 0; color: #888; font-size: 14px; margin-top: 5px;">No Bill Attachments recorded for this voucher.</div>';
+        return imgsHTML;
+    }
+    
+    imgsHTML += `<div class="attachment-grid-print">`;
+    // MODIFIED: Read from attachment object instead of base64 string
+    v.attachments.forEach((attachment, index) => {
+        // Use attachment.caption if it exists, otherwise use default
+        const captionText = attachment.caption ? escapeHtml(attachment.caption) : `Attachment ${index + 1}`;
+        imgsHTML += `
+            <div class="attachment-wrapper-print">
+                <img src="${escapeHtml(attachment.base64)}" alt="${captionText}" onclick="viewImage('${escapeHtml(attachment.base64)}')">
+                <div style="text-align: center; font-size: 11px; color: #006400; font-weight: bold; margin-top: 3px;">${captionText}</div>
+            </div>
+        `;
+    });
+    imgsHTML += `</div>`;
+
+    return imgsHTML;
+}
+
+// --- Print function opens a new window with all necessary, non-conflicting styles ---
+function printVoucher(no) {
+    const v = vouchers.find(v => v.voucherNo === no);
+    if (!v) return alertCustom(`Voucher ${no} not found.`);
+
+    const voucherHtmlContent = renderVoucherHTML(v);
+    const attachmentHtmlContent = renderAttachmentHTML(v);
+
+    const fullPrintHTML = `<!doctype html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Print Voucher ${escapeHtml(v.voucherNo)}</title>
+            <style>
+                @page { 
+                    size: A4 portrait; 
+                    margin: 5mm; 
+                } 
+                :root{
+                    --main-blue:#1a237e;
+                    --light-blue:#9fa8da;
+                    --text:#0d113f;
+                    --red-voucher-no: #D32F2F;
+                    --header-bg: #e0e7ff;
+                    --table-border-color: #4a548e;
+                    --amount-words-color: #5D4037;
+                }
+                body, html{margin:0; padding:0; font-family:Inter,Arial,Helvetica,sans-serif; color:var(--text); font-size: 14px;}
+                .print-doc{width: 200mm; margin: 0 auto; background:#fff; min-height: 287mm;} 
+                .voucher-half{max-width: 100%; height: auto; min-height: auto; overflow: hidden; padding-bottom: 0; border-bottom: none;}
+                .voucher-box{
+        border:2px solid #2d4fa3;
+        padding:8mm 12mm;
+        box-sizing:border-box;
+width:100%; box-sizing:border-box; border:2px solid var(--table-border-color); padding:8mm 12mm; border-radius:6px; background:#fff;}
+                .v-logo-title{display: flex; align-items: center; justify-content: center; margin-bottom: 2px; padding-top: 5px;}
+                .voucher-meta-row { display: flex; justify-content: flex-start; align-items: baseline; margin-bottom: 8px; font-size: 14px; font-weight: 600;}
+                .voucher-no-display{color: var(--red-voucher-no); font-weight: 800; font-size: 15px; margin-left: 5px;}
+                .v-signs{display:flex; gap:20px; margin-top: 20px; align-items:flex-end; justify-content: space-around;} 
+                .v-sign{flex-basis: 40%; text-align:center; min-height:90px; display: flex; flex-direction: column; justify-content: flex-end;}
+                .sig-image{max-width:100%; box-sizing:border-box; max-height:70px; object-fit:contain; width:100%; height:auto; image-rendering:auto; margin-bottom:5px;} 
+                .amount-words-text { color: var(--amount-words-color); font-weight: bold; }
+                /* Table Styles */
+                table{border-collapse: collapse; width: 100%; font-size: 14px;}
+                table th, table td {border: 1px solid var(--table-border-color); padding: 8px 6px;}
+                table th {background: var(--header-bg); color: var(--main-blue); font-weight: 700;}
+                /* START OF PRINT CSS UPDATES */
+                table th:nth-child(3), table td:nth-child(3) {text-align:center; font-weight: bold;} /* Description (Col 3) - NOW BOLD AND CENTERED */
+                table th:nth-child(4), table td:nth-child(4) {text-align:center; font-weight: 800;} /* Amount (Col 4) - NOW CENTERED */
+                /* END OF PRINT CSS UPDATES */
+                /* Attachment Grid Styles (4 in a row) - MODIFIED */
+                .attachment-half {max-width: 100%; min-height: auto; padding-top: 0px; page-break-before: avoid;}
+                .attachment-half h3 {color: var(--red-voucher-no); padding-bottom: 5px; margin: 0px 0 5px 0; font-size: 18px; text-align: left; padding-left: 12mm;} /* MODIFIED: Set color to red */
+                .attachment-grid-print{
+        display:grid;
+        grid-template-columns: repeat(3, 1fr); /* 3 PER ROW */
+        column-gap:20px;
+        row-gap:28px; /* more space between rows */
+        width:100%; box-sizing:border-box; margin: 0 auto;
+        margin:0 auto;
+    }
+    .attachment-wrapper-print{
+        width:100%; box-sizing:border-box;
+        border:1px solid #ccc;
+        padding:4px;
+        border-radius:6px;
+        box-sizing:border-box;
+        page-break-inside:avoid;
+    }
+    .attachment-wrapper-print img{
+        width:100%;
+        height:auto;
+        object-fit:contain;
+
+        border:1px solid #ccc;
+
+        width:100%; box-sizing:border-box;
+        height:auto; max-height:90vh;
+        object-fit:contain; width:100%; height:auto;
+        image-rendering:auto;
+
+        width:100%; box-sizing:border-box;
+        height:auto;
+        object-fit:contain; width:100%; height:auto; image-rendering:auto;
+        display:block;
+        cursor:pointer;
+        background:#fff;
+    }
+                @media print{ 
+                    @font-face { font-family: 'Parveez'; src: local('Times New Roman'), local('Serif'); } 
+                } 
+            
+/* === Attachment controls (DELETE + DRAG) === */
+.attachment-wrapper{position:relative;}
+.attach-del{
+ position:absolute;top:4px;right:4px;
+ background:#fff;border-radius:50%;
+ width:20px;height:20px;
+ line-height:18px;text-align:center;
+ color:#c00;font-weight:900;
+ cursor:pointer;border:1px solid #ccc;
+}
+.attach-drag{
+ position:absolute;bottom:4px;left:4px;
+ font-size:14px;cursor:grab;color:#555;
+}
+
+
+/* FORCE DATE TO SINGLE LINE */
+.table td:nth-child(2),
+.table th:nth-child(2){
+    white-space: nowrap;
+}
+
+
+/* DATE COLUMN WIDTH FIX */
+.table th:nth-child(2),
+.table td:nth-child(2){
+    width: 120px;
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+
+/* VIEW PREVIEW ONLY – FORCE DATE COLUMN ONE LINE */
+#previewModal .table th:nth-child(2),
+#previewModal .table td:nth-child(2){
+    width: 140px;
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+</style>
+        </head>
+        <body>
+            <div class="print-doc">
+                <div class="voucher-half">
+                    ${voucherHtmlContent}
+                </div>
+                <div class="attachment-half">
+                    ${attachmentHtmlContent}
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(fullPrintHTML);
+    w.document.close();
+
+    w.onload = () => {
+        // Need a slight delay to ensure all assets (signatures/images) are loaded before printing
+        setTimeout(() => {
+            w.print();
+            // w.close(); // Not closing automatically for better UX
+        }, 500); 
+    };
+}
+
+function updateSelectedVouchersTotal() {
+    let selectedTotal = 0;
+    const checkboxes = DOM.daybookBody.querySelectorAll('.voucher-select-checkbox:checked');
+    checkboxes.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        const amountText = row.querySelector('td:nth-child(3)').textContent.replace('₹', '').replace(',', '').trim();
+        selectedTotal += parseFloat(amountText) || 0;
+    });
+    DOM.selectedTotalAmount.textContent = `₹${selectedTotal.toFixed(2)}`;
+}
+
+function renderDaybook(vouchersToRender) {
+    const tbody = DOM.daybookBody;
+    tbody.innerHTML = ''; 
+    vouchersToRender.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.className = 'daybook-row';
+
+        const voucherNoCell = `<td style="text-align: center; font-weight: bold;">${escapeHtml(v.voucherNo)}</td>`;
+        const totalAmountCell = `<td style="text-align: center; font-weight: bold;">₹${escapeHtml(v.totalAmount)}</td>`;
+        
+        // Use daybookDate for better sort context
+        const daybookDateDisplay = formatDateForDisplay(v.daybookDate);
+
+        const actionsCell = `
+            <td class="no-print" style="text-align: center; display: flex; gap: 4px; justify-content: center;">
+                <button class="btn secondary" type="button" style="padding: 4px 8px;" onclick="editVoucher('${escapeHtml(v.voucherNo)}')">Edit</button>
+                <button class="btn secondary" type="button" style="padding: 4px 8px;" onclick="viewVoucher('${escapeHtml(v.voucherNo)}')">View</button>
+                <button class="btn secondary" type="button" style="padding: 4px 8px;" onclick="printVoucher('${escapeHtml(v.voucherNo)}')">Print</button>
+                <button class="btn secondary" type="button" style="padding: 4px 8px; background: #f9e1e1; color: #cc0000; border-color: #f0caca;" onclick="deleteVoucher('${escapeHtml(v.voucherNo)}')">Delete</button>
+            </td>
+        `;
+
+        tr.innerHTML = `
+            <td style="text-align: center;" class="no-print">
+                <input type="checkbox" class="voucher-select-checkbox" data-amount="${escapeHtml(v.totalAmount)}">
+            </td>
+            ${voucherNoCell}
+            ${totalAmountCell}
+            ${actionsCell}
+        `;
+        tbody.appendChild(tr);
+
+        // Attach listener to the new checkbox
+        tr.querySelector('.voucher-select-checkbox').addEventListener('change', updateSelectedVouchersTotal);
+    });
+
+    if (vouchersToRender.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="4" style="text-align:center; color:#888;">No entries found.</td>`;
+        tbody.appendChild(tr);
+    }
+
+    document.getElementById('totalVouchers').textContent = vouchersToRender.length;
+    updateSelectedVouchersTotal(); // Initialize the total display
+}
+
+function filterDaybook() {
+    const query = DOM.searchDaybookInput.value.toLowerCase().trim();
+    if (!query) {
+        renderDaybook(vouchers);
+        return;
+    }
+
+    const filtered = vouchers.filter(v => {
+        const voucherNo = (v.voucherNo || '').toLowerCase();
+        const date = (v.daybookDate || '').toLowerCase();
+        const totalAmount = (v.totalAmount || '0.00').toLowerCase();
+        const descriptionMatch = v.items.some(item => (item.description || '').toLowerCase().includes(query));
+        
+        return voucherNo.includes(query) || date.includes(query) || totalAmount.includes(query) || descriptionMatch;
+    });
+
+    renderDaybook(filtered);
+}
+
+// MODIFIED: Removed password protection and async
+function editVoucher(no) {
+    const v = vouchers.find(v => v.voucherNo === no);
+    if (!v) {
+        alertCustom(`Voucher ${no} not found.`);
+        return;
+    }
+
+    // --- FIX FOR BUG 1: Ensure any open preview modal is closed ---
+    window.closePreview(); // This relies on the new delayed function for safety
+    // -----------------------------------------------------------
+
+    // CRITICAL FIX: Ensure daybook is hidden and appCard is shown immediately for smooth transition
+    DOM.daybookPanel.style.display = 'none';
+    document.getElementById('appCard').style.display = 'block';
+
+    resetForm(false);
+    
+    DOM.voucherNo.value = v.voucherNo;
+    DOM.paidBy.value = v.paidBy || 'Parveez';
+    DOM.approvedBy.value = v.approvedBy || 'Dr.Kiran';
+    
+    // Clear the default single line item
+    DOM.lineItemBody.innerHTML = ''; 
+    // Load line items
+    v.items.forEach(item => {
+        addLineItem(item.date, item.description, item.amount);
+    });
+    updateLineItemTotal();
+
+    // Load signatures and attachments
+    paidBySignature = v.paidBySignature || '';
+    approvedBySignature = v.approvedBySignature || '';
+    renderSignaturePreview('paidBy');
+    renderSignaturePreview('approvedBy');
+    
+    // Load attachments (ensure attachment structure is the new object type)
+    currentImages = (v.attachments || []).map(att => typeof att === 'string' ? { base64: att, caption: '' } : att);
+    renderAttachmentPreviews();
+
+    DOM.saveBtn.textContent = 'Update Voucher';
+}
+
+function viewVoucher(no) {
+    const v = vouchers.find(v => v.voucherNo === no);
+    if (!v) return alertCustom(`Voucher ${no} not found.`);
+
+    // --- CRITICAL FIX: Ensure all attachments conform to the new object structure {base64, caption}
+    // This handles old saved data where attachments were just a base64 string
+    v.attachments = (v.attachments || []).map(att => typeof att === 'string' ? { base64: att, caption: '' } : att);
+
+    const voucherHtmlContent = renderVoucherHTML(v);
+    const attachmentHtmlContent = renderAttachmentHTML(v);
+
+    // Use the structural print classes for view (the modal preview)
+    const combinedHtml = `
+        <div class="print-doc" style="border: 1px solid #ddd; box-shadow: 0 0 8px rgba(0,0,0,0.1); margin: 20px auto; min-height: 297mm; max-height: none; width: 200mm;">
+            <div class="voucher-half" style="height: auto; min-height: auto; border-bottom: none;">
+                ${voucherHtmlContent}
+            </div>
+            <div class="attachment-half" style="min-height: auto; padding-top: 0px;">
+                ${attachmentHtmlContent}
+            </div>
+        </div>
+    `;
+
+    const modal = document.getElementById('previewModal');
+    const body = document.getElementById('previewBody');
+    body.innerHTML = combinedHtml;
+    modal.style.display = 'flex';
+}
+
+// MODIFIED: Function to display image previews and allow caption editing (User Request 4)
+
+function renderAttachmentPreviews() {
+    DOM.attachmentGrid.innerHTML = '';
+    DOM.attachmentGrid.style.display='flex';
+    DOM.attachmentGrid.style.flexWrap='wrap';
+
+    let dragSrcIndex = null;
+
+    DOM.attachmentGrid.innerHTML = '';
+    currentImages.forEach((attachment, index) => {
+        
+        const wrapper = document.createElement('div');
+        wrapper.className='attachment-wrapper';
+        wrapper.draggable=true;
+
+        wrapper.style.marginRight = '6px';
+        wrapper.style.marginBottom = '8px';
+        wrapper.style.border = '1px solid #ccc';
+        wrapper.style.borderRadius = '6px';
+        wrapper.style.padding = '4px';
+        wrapper.style.width = '120px'; // To accommodate caption input
+        wrapper.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+
+        const img = document.createElement('img');
+        img.src = attachment.base64; // Use base64 property
+        img.className = 'attachment-thumb';
+        img.style.width = '100%';
+        img.style.height = '80px';
+        img.style.marginRight = '0';
+        img.style.marginBottom = '4px';
+        img.alt = `Attachment ${index + 1}`;
+        img.title = `Click to view/edit Attachment ${index + 1}`;
+        img.style.cursor = 'pointer';
+        img.onclick = () => openAttachmentDetailModal(index);
+        wrapper.appendChild(img);
+        const del = document.createElement('div');
+        del.className='attach-del';
+        del.textContent='×';
+        del.onclick = (e)=>{
+            e.stopPropagation();
+            if(confirm('Delete this image?')){
+                currentImages.splice(index,1);
+                renderAttachmentPreviews();
+            }
+        };
+        wrapper.appendChild(del);
+
+        const drag = document.createElement('div');
+        drag.className='attach-drag';
+        drag.textContent='⇅';
+        wrapper.appendChild(drag);
+
+        wrapper.addEventListener('dragstart', ()=>{ dragSrcIndex=index; });
+        wrapper.addEventListener('dragover', e=>e.preventDefault());
+        wrapper.addEventListener('drop', ()=>{
+            if(dragSrcIndex===null||dragSrcIndex===index) return;
+            const temp=currentImages[dragSrcIndex];
+            currentImages.splice(dragSrcIndex,1);
+            currentImages.splice(index,0,temp);
+            renderAttachmentPreviews();
+        });
+
+
+        const captionInput = document.createElement('input');
+        captionInput.type = 'text';
+        captionInput.value = attachment.caption || '';
+        captionInput.placeholder = `Caption ${index + 1}`;
+        captionInput.style.height = '24px';
+        captionInput.style.fontSize = '11px';
+        captionInput.style.padding = '2px 4px';
+        captionInput.style.fontWeight = 'normal';
+        captionInput.oninput = (e) => {
+            currentImages[index].caption = e.target.value;
+        };
+        wrapper.appendChild(captionInput);
+
+        DOM.attachmentGrid.appendChild(wrapper);
+    });
+}
+
+// --- Import/Export Functions (Unchanged logic, uses modified confirmCustom) ---
+
+function exportData() {
+    if (vouchers.length === 0) return alertCustom("No vouchers saved to export.");
+    const data = JSON.stringify({ vouchers: vouchers, maxVoucherNumber: maxVoucherNumber }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vivistar_vouchers_backup_${new Date().toISOString().substring(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    alertCustom(`Successfully prepared ${vouchers.length} vouchers for download.`);
+}
+
+function importData(file) {
+    if (!confirmCustom("WARNING: Importing data will replace your current daybook data. Proceed?")) {
+        return;
+    }
+    DOM.loadingOverlay.style.display = 'flex';
+    DOM.loadingOverlay.textContent = 'Importing Data...';
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            if (!Array.isArray(importedData.vouchers)) {
+                throw new Error("Invalid file structure. Missing 'vouchers' array.");
+            }
+            
+            await openDB();
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+
+            // Clear existing data
+            await new Promise((resolve, reject) => {
+                const clearRequest = store.clear();
+                clearRequest.onsuccess = () => resolve();
+                clearRequest.onerror = (event) => reject(event);
+            });
+
+            // Add imported data
+            const importPromises = importedData.vouchers.map(v => {
+                // Safely convert old string attachments to new object structure on import
+                if (v.attachments) {
+                    v.attachments = v.attachments.map(att => typeof att === 'string' ? { base64: att, caption: '' } : att);
+                }
+                return new Promise((resolve, reject) => {
+                    const addRequest = store.add(v);
+                    addRequest.onsuccess = () => resolve();
+                    addRequest.onerror = (event) => {
+                        console.warn(`Skipping duplicate or invalid entry: ${v.voucherNo}`, event.target.error);
+                        resolve();
+                    };
+                });
+            });
+
+            await Promise.all(importPromises);
+            await loadVouchersFromDatabase(false);
+            alertCustom(`Successfully imported ${importedData.vouchers.length} vouchers. Max voucher number updated.`);
+            resetForm(true); // Reset the form after successful import
+        } catch (error) {
+            console.error("Import Error:", error);
+            alertCustom(`ERROR: Failed to import data. ${error.message}`);
+        } finally {
+            DOM.loadingOverlay.style.display = 'none';
+        }
+    };
+    reader.onerror = (e) => {
+        console.error("File Read Error:", e);
+        alertCustom("ERROR: Could not read the file.");
+        DOM.loadingOverlay.style.display = 'none';
+    };
+    reader.readAsText(file);
+}
+
+// --- Event Listeners and Initialization ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    DOM.loadingOverlay.style.display = 'flex';
+    initSignatureCanvas();
+    loadVouchersFromDatabase().then(() => {
+        resetForm(true);
+    });
+
+    DOM.saveBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveVoucher(collectVoucherData());
+    });
+
+    DOM.addLineItemBtn.addEventListener('click', () => {
+        addLineItem();
+    });
+
+    DOM.viewDaybookBtn.addEventListener('click', () => {
+        DOM.daybookPanel.style.display = 'block';
+        document.getElementById('appCard').style.display = 'none';
+        renderDaybook(vouchers);
+    });
+
+    document.getElementById('closeDaybookBtn').addEventListener('click', () => {
+        DOM.daybookPanel.style.display = 'none';
+        document.getElementById('appCard').style.display = 'block';
+    });
+
+    DOM.exportBtn.addEventListener('click', exportData);
+
+    DOM.importBtn.addEventListener('click', () => {
+        DOM.importFileInput.click();
+    });
+
+    DOM.importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            importData(file);
+        }
+        e.target.value = ''; 
+    });
+
+    DOM.searchDaybookInput.addEventListener('input', filterDaybook);
+
+    DOM.attachInput.addEventListener('change', async (e) => {
+        const files = e.target.files;
+        if (files.length === 0) return;
+
+        DOM.loadingOverlay.style.display = 'flex';
+        DOM.loadingOverlay.textContent = 'Compressing and Adding Attachments...';
+        
+        let allFilesOk = true;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type.startsWith('image/')) {
+                if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                    alertCustom(`ERROR: File "${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Max size is ${MAX_FILE_SIZE_MB}MB.`);
+                    allFilesOk = false;
+                    continue;
+                }
+                try {
+                    // Compress image to a max width of 1024px and quality 0.8
+                    const compressedBase64 = await compressImage(file, 1024, 0.8);
+                    // Add new object with base64 and empty caption
+                    currentImages.push({ base64: compressedBase64, caption: '' });
+                } catch (error) {
+                    console.error("Image compression failed:", error);
+                    alertCustom(`ERROR: Failed to process image "${file.name}".`);
+                    allFilesOk = false;
+                }
+            } else {
+                alertCustom(`ERROR: File "${file.name}" is not an image.`);
+                allFilesOk = false;
+            }
+        }
+        
+        DOM.loadingOverlay.style.display = 'none';
+        
+        if (allFilesOk) {
+            renderAttachmentPreviews();
+        }
+
+        // Clear the file input to allow re-uploading the same files
+        if (DOM.attachInput) {
+            DOM.attachInput.value = '';
+        }
+    });
+
+    DOM.attachCloseBtn.addEventListener('click', closeAttachmentDetailModal);
+    
+});
+
+// Attach functions to window scope for HTML event handlers
+window.editVoucher = editVoucher;
+window.viewVoucher = viewVoucher;
+window.printVoucher = printVoucher;
+window.deleteVoucher = deleteVoucherFromDatabase; 
+window.closePreview = () => {
+    // --- CRITICAL FIX FOR BUG 1: Add a slight delay to allow event loop to reset ---
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'none';
+    
+    setTimeout(() => {
+        // Attempt to return focus to the main document body to unblock events
+        document.body.focus();
+    }, 50); 
+    // -----------------------------------------------------------------------------
+};
+window.removeLineItem = removeLineItem;
+window.updateLineItemTotal = updateLineItemTotal;
+window.openSignatureModal = openSignatureModal;
+window.clearSignature = clearSignature;
+window.handleSignatureAttach = handleSignatureAttach;
+// Export the new update function
+window.updateSelectedVouchersTotal = updateSelectedVouchersTotal;
+// Export the new attachment functions
+window.openAttachmentDetailModal = openAttachmentDetailModal;
+window.closeAttachmentDetailModal = closeAttachmentDetailModal;
+window.viewImage = viewImage;
+window.printImage = printImage;
+window.saveImageAsPdf = saveImageAsPdf;
+window.deleteAttachmentFromModal = deleteAttachmentFromModal; // Export the password-protected delete
+
+
+
+
+// ===== ADMIN / VISITOR MODE INTEGRATION =====
+const ADMIN_SESSION_KEY = "vivistar_admin_mode";
+const ADMIN_PIN_HASH = btoa("23143");
+
+function isAdminMode(){
+    return localStorage.getItem(ADMIN_SESSION_KEY) === "true";
+}
+
+function setAdminMode(state){
+    localStorage.setItem(ADMIN_SESSION_KEY, state ? "true" : "false");
+    applyAdminPermissions();
+}
+
+function disableElement(el, state){
+    if(!el) return;
+    el.disabled = state;
+    if(state){
+        el.style.pointerEvents = "none";
+        el.style.opacity = "0.6";
+    } else {
+        el.style.pointerEvents = "";
+        el.style.opacity = "";
+    }
+}
+
+function applyAdminPermissions(){
+    const admin = isAdminMode();
+
+    // Main Form Restrictions
+    disableElement(DOM.saveBtn, !admin);
+    disableElement(DOM.addLineItemBtn, !admin);
+    disableElement(DOM.exportBtn, !admin);
+    disableElement(DOM.attachInput, !admin); // Disable Choose Files
+
+    document.querySelectorAll(".line-item-description, .line-item-amount, .line-item-date").forEach(el=>{
+        el.readOnly = !admin;
+    });
+
+    // Disable Draw / Attach / Remove buttons
+    document.querySelectorAll("button").forEach(btn=>{
+        if(btn.textContent.includes("Remove") ||
+           btn.textContent.includes("Draw") ||
+           btn.textContent.includes("Attach")){
+            btn.disabled = !admin;
+            btn.style.pointerEvents = admin ? "" : "none";
+            btn.style.opacity = admin ? "" : "0.6";
+        }
+    });
+
+    // Disable Edit/Delete inside Saved Vouchers table for Visitors
+    document.querySelectorAll("#daybookTable button").forEach(btn=>{
+        if(btn.textContent.includes("Edit") || btn.textContent.includes("Delete")){
+            btn.disabled = !admin;
+            btn.style.pointerEvents = admin ? "" : "none";
+            btn.style.opacity = admin ? "" : "0.6";
+        }
+    });
+
+    const toggleBtn = document.getElementById("adminToggleBtn");
+    if(toggleBtn){
+        toggleBtn.textContent = admin ? "Logout" : "Admin";
+    }
+}
+
+// Password Modal
+function showAdminPasswordModal(){
+    const modal = document.createElement("div");
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.background = "rgba(0,0,0,0.5)";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    modal.style.zIndex = "99999";
+
+    modal.innerHTML = `
+        <div style="background:#fff;padding:20px;border-radius:8px;width:300px;text-align:center;">
+            <h3 style="margin-top:0;">Admin Login</h3>
+            <input type="password" id="adminPasswordInput" style="width:100%; box-sizing:border-box;padding:8px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;">
+                <button id="adminCancelBtn">Cancel</button>
+                <button id="adminSubmitBtn">Login</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("adminCancelBtn").onclick = function(){
+        document.body.removeChild(modal);
+    };
+
+    document.getElementById("adminSubmitBtn").onclick = function(){
+        const val = document.getElementById("adminPasswordInput").value;
+        if(btoa(val) === ADMIN_PIN_HASH){
+            setAdminMode(true);
+            document.body.removeChild(modal);
+        } else {
+            alert("Incorrect PIN");
+        }
+    };
+}
+
+// Ensure permissions re-apply after daybook render
+const originalRenderDaybook = renderDaybook;
+renderDaybook = function(){
+    originalRenderDaybook.apply(this, arguments);
+    applyAdminPermissions();
+};
+
+setTimeout(()=>{
+    applyAdminPermissions();
+
+    const toggleBtn = document.getElementById("adminToggleBtn");
+    if(toggleBtn){
+        toggleBtn.onclick = function(){
+            if(isAdminMode()){
+                setAdminMode(false);
+            } else {
+                showAdminPasswordModal();
+            }
+        };
+    }
+}, 500);
+
+// ===== END ADMIN MODE =====
+
+
+
+
+</script>
+</body>
+</html>
