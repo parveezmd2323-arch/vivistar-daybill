@@ -714,34 +714,34 @@ function saveVoucher(v) {
 }
 
 // MODIFIED: Removed password protection
-async function  {
-    if (!confirmCustom(`Are you absolutely sure you want to permanently delete voucher ${voucherNo}?`)) {
+
+async function deleteVoucher(voucherNo) {
+    if (!confirm(`Are you sure you want to delete voucher ${voucherNo}?`)) {
         return;
     }
-    
+
     DOM.loadingOverlay.style.display = 'flex';
     DOM.loadingOverlay.textContent = 'Deleting Entry...';
+
     try {
-        await openDB();
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const { error } = await supabaseClient
+            .from("vouchers")
+            .delete()
+            .eq("voucherNo", voucherNo);
 
-        await new Promise((resolve, reject) => {
-            const request = store.delete(voucherNo);
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event);
-        });
+        if (error) throw error;
 
-        await 
-        alertCustom(`Voucher ${voucherNo} deleted successfully.`);
-        renderDaybook(vouchers);
+        await loadFromSupabase();
+
+        alert(`Voucher ${voucherNo} deleted successfully.`);
     } catch (e) {
-        console.error("Database Delete Error:", e);
-        alertCustom("ERROR: Failed to delete voucher from database.");
+        console.error("Delete Error:", e);
+        alert("Failed to delete voucher.");
     } finally {
         DOM.loadingOverlay.style.display = 'none';
     }
 }
+
 
 function updateLineItemTotal() {
     let total = 0;
@@ -1719,9 +1719,9 @@ function importData(file) {
                 throw new Error("Invalid file structure. Missing 'vouchers' array.");
             }
             
-            await openDB();
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
+            
+            
+            
 
             // Clear existing data
             await new Promise((resolve, reject) => {
