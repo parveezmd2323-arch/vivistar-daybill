@@ -267,6 +267,8 @@ select {
 }
 
 </style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a237e">
 </head>
 <body>
 <div class="container">
@@ -510,9 +512,9 @@ const channel = supabaseClient
     console.log('Realtime status:', status);
   });
 
-const DB_NAME = 'VivistarDayBillDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'vouchers';
+
+
+
 const VOUCHER_PREFIX = 'VDB-';
 const INITIAL_VOUCHER_NUMBER = 1000;
 const MAX_FILE_SIZE_MB = 10; 
@@ -694,96 +696,7 @@ function compressImage(file, maxWidth = 1600, quality = 0.9) {
     });
 }
 
-// IndexedDB Functions
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onerror = (event) => { reject(event.target.error); };
-        request.onsuccess = (event) => { db = event.target.result; resolve(db); };
-        request.onupgradeneeded = (event) => {
-            const db_new = event.target.result;
-            if (!db_new.objectStoreNames.contains(STORE_NAME)) {
-                db_new.createObjectStore(STORE_NAME, { keyPath: 'voucherNo' });
-            }
-        };
-    });
-}
 
-async function loadVouchersFromDatabase(showErrorAlert = true) {
-    DOM.loadingOverlay.style.display = 'flex';
-    DOM.loadingOverlay.textContent = 'Loading Vouchers...';
-    try {
-        await openDB(); 
-        const transaction = db.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const getAllRequest = store.getAll();
-
-        await new Promise((resolve, reject) => {
-            getAllRequest.onsuccess = (event) => {
-                const storedVouchers = event.target.result;
-                vouchers = storedVouchers || [];
-                
-                let maxVouchNo = INITIAL_VOUCHER_NUMBER;
-                vouchers.forEach(data => {
-                    const numPartStr = (data.voucherNo || VOUCHER_PREFIX + '0').split('-')[1];
-                    const numPart = parseInt(numPartStr, 10);
-                    if (!isNaN(numPart) && numPart > maxVouchNo) {
-                        maxVouchNo = numPart;
-                    }
-                });
-
-                maxVoucherNumber = maxVouchNo;
-                
-                vouchers.sort((a, b) => {
-                    const numA = parseInt((a.voucherNo || VOUCHER_PREFIX + '0').split('-')[1], 10);
-                    const numB = parseInt((b.voucherNo || VOUCHER_PREFIX + '0').split('-')[1], 10);
-                    return numB - numA;
-                });
-
-                resolve();
-            };
-            getAllRequest.onerror = (event) => {
-                reject(event.target.error);
-            };
-        });
-
-    } catch (e) {
-        console.error("Failed to load vouchers from IndexedDB:", e);
-        if (showErrorAlert) alertCustom("Failed to load data from database.");
-    } finally {
-        DOM.loadingOverlay.style.display = 'none';
-        renderDaybook(vouchers);
-    }
-}
-
-async function saveVoucherToDatabase(v) {
-    DOM.loadingOverlay.style.display = 'flex';
-    DOM.loadingOverlay.textContent = 'Saving Entry...';
-    DOM.saveBtn.disabled = true;
-    try {
-        await openDB();
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        
-        await new Promise((resolve, reject) => {
-            const request = store.put(v);
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event);
-        });
-
-        await loadVouchersFromDatabase(false); 
-        alertCustom(`Entry ${v.voucherNo} saved successfully. Click 'View Saved Vouchers' to see it.`);
-        resetForm(true);
-    } catch (e) {
-        // Log the error for debugging the 'Cannot set properties of null'
-        console.error("Database Save Error Details:", e);
-        const errMsg = e.message || (e.target && e.target.error ? e.target.error.name : 'Unknown error');
-        alertCustom(`ERROR: Failed to save to database. Cause: ${errMsg}.`);
-    } finally {
-        DOM.loadingOverlay.style.display = 'none';
-        DOM.saveBtn.disabled = false;
-    }
-}
 
 function saveVoucher(v) {
     // Check if voucherNo exists, if not, assign a new one
@@ -796,12 +709,12 @@ function saveVoucher(v) {
         const nextVoucherNo = VOUCHER_PREFIX + maxVoucherNumber;
         v.voucherNo = nextVoucherNo;
     }
-    saveVoucherToDatabase(v);
+    
     saveVoucherToSupabase(v);
 }
 
 // MODIFIED: Removed password protection
-async function deleteVoucherFromDatabase(voucherNo) {
+async function  {
     if (!confirmCustom(`Are you absolutely sure you want to permanently delete voucher ${voucherNo}?`)) {
         return;
     }
@@ -819,7 +732,7 @@ async function deleteVoucherFromDatabase(voucherNo) {
             request.onerror = (event) => reject(event);
         });
 
-        await loadVouchersFromDatabase(false);
+        await 
         alertCustom(`Voucher ${voucherNo} deleted successfully.`);
         renderDaybook(vouchers);
     } catch (e) {
@@ -1155,7 +1068,15 @@ function closeAttachmentDetailModal() {
 
 function viewImage(base64) {
     const w = window.open('about:blank', '_blank');
-    w.document.write(`<html><head><title>Full Size Image</title></head><body style="margin:0; text-align:center; background:#000;"><img src="${base64}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 100vh;"></body></html>`);
+    w.document.write(`<html><head><title>Full Size Image</title><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a237e">
+</head><body style="margin:0; text-align:center; background:#000;"><img src="${base64}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; max-height: 100vh;">
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body></html>`);
     w.document.close();
 }
 
@@ -1202,7 +1123,15 @@ function printImage(base64) {
     white-space: nowrap;
 }
 
-</style></head><body><img src="${base64}"></body></html>`;
+</style><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a237e">
+</head><body><img src="${base64}">
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body></html>`;
     w.document.write(html);
     w.document.close();
     w.onload = () => w.print();
@@ -1495,7 +1424,9 @@ width:100%; box-sizing:border-box; border:2px solid var(--table-border-color); p
 }
 
 </style>
-        </head>
+        <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a237e">
+</head>
         <body>
             <div class="print-doc">
                 <div class="voucher-half">
@@ -1505,7 +1436,13 @@ width:100%; box-sizing:border-box; border:2px solid var(--table-border-color); p
                     ${attachmentHtmlContent}
                 </div>
             </div>
-        </body>
+        
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
         </html>`;
 
     const w = window.open('', '_blank');
@@ -1810,7 +1747,7 @@ function importData(file) {
             });
 
             await Promise.all(importPromises);
-            await loadVouchersFromDatabase(false);
+            await 
             alertCustom(`Successfully imported ${importedData.vouchers.length} vouchers. Max voucher number updated.`);
             resetForm(true); // Reset the form after successful import
         } catch (error) {
@@ -1833,7 +1770,7 @@ function importData(file) {
 document.addEventListener('DOMContentLoaded', () => {
     DOM.loadingOverlay.style.display = 'flex';
     initSignatureCanvas();
-    loadVouchersFromDatabase().then(() => {
+    .then(() => {
         resetForm(true);
     });
 
@@ -2085,6 +2022,12 @@ setTimeout(()=>{
 
 
 
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
 </script>
 </body>
 </html>
