@@ -492,17 +492,23 @@ async function loadFromSupabase() {
     }
 }
 // ===== REALTIME SYNC =====
-supabaseClient
-  .channel('vouchers-channel')
+const channel = supabaseClient
+  .channel('realtime:vouchers')
   .on(
     'postgres_changes',
-    { event: '*', schema: 'public', table: 'vouchers' },
+    {
+      event: '*',
+      schema: 'public',
+      table: 'vouchers'
+    },
     () => {
       console.log('Realtime update received');
       loadFromSupabase();
     }
   )
-  .subscribe();
+  .subscribe((status) => {
+    console.log('Realtime status:', status);
+  });
 
 const DB_NAME = 'VivistarDayBillDB';
 const DB_VERSION = 1;
