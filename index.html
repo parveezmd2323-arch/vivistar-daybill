@@ -468,6 +468,7 @@ async function saveVoucherToSupabase(voucherData) {
 }
 
 async function loadFromSupabase() {
+
     const { data, error } = await supabaseClient
         .from("vouchers")
         .select("*")
@@ -490,6 +491,18 @@ async function loadFromSupabase() {
         console.error("Supabase Load Error:", error?.message);
     }
 }
+// ===== REALTIME SYNC =====
+supabaseClient
+  .channel('vouchers-channel')
+  .on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'vouchers' },
+    () => {
+      console.log('Realtime update received');
+      loadFromSupabase();
+    }
+  )
+  .subscribe();
 
 const DB_NAME = 'VivistarDayBillDB';
 const DB_VERSION = 1;
